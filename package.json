@@ -1,12 +1,11 @@
 {
   "name": "gh-actions",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "ncc build ./refreshToken.js -o dist --source-map --license licenses.txt"
-
   },
   "keywords": [],
   "author": "Jacob Zwickler",
