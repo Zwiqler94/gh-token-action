@@ -1,0 +1,7 @@
+name: Get Github Token
+description: ''
+runs: 
+  using: 'node16'
+  main: 'dist/index.js'
+ 
+      
