@@ -1,0 +1,69 @@
+name: Test
+on:
+  workflow_call:
+env:
+  REPO_URL: "https://api.github.com/repos/${{ github.repository }}"
+  PULL_URL: ""
+  APPROVAL_URL: ""
+  JSON: ""
+  CURL: 0
+  BRANCH: finaltest
+permissions: write-all
+jobs:
+  test:
+    name: Q
+    runs-on: ubuntu-latest
+    outputs:
+      appToken: ${{ steps.A.outputs.appToken }}
+      userToken: ${{ steps.A.outputs.userToken }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: A
+        id: A
+        uses: ./
+        with:
+          token: ${{ secrets.USER_ACCESS_TOKEN }}
+          appId: ${{ secrets.APP_ID }}
+          privateKey: ${{ secrets.APP_PRIVATE_KEY }}
+          clientId: ${{ secrets.APP_CLIENT_ID }}
+          clientSecret: ${{ secrets.APP_CLIENT_SECRET }}
+          userRefreshToken: ${{ secrets.USER_REFRESH_TOKEN }}
+  test-push:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - run: echo "${{ toJson(env) }}"
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ needs.test.outputs.appToken }}
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: version
+        run: |
+            echo "https://${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git"
+            git clone https://${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
+            cd GH-Actions
+            git remote set-url origin https://github-actions:${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
+            git pull --tags
+            git config --local user.name 'github-actions'
+            git config --local user.email 'github-actions@github.com'
+            git config --local push.autoSetupRemote true
+            git config -l
+            git checkout -b "${{ env.BRANCH }}"
+            git push
+            npm version minor
+            git push --follow-tags
+      - run: echo "PULL_URL="${{ env.REPO_URL }}/pulls"" >> "$GITHUB_ENV"
+      - run: echo "-URL-> ${{ env.PULL_URL }}"
+      - run: echo "JSON="{\"title\":\"Amazing new feature 3\",\"body\":\"Please pull these awesome changes in!\",\"head\":\"Zwiqler94:"${{ env.BRANCH }}"\",\"base\":\"main\"}"" >> "$GITHUB_ENV"
+      - run: echo "-JSON-> ${{ env.JSON }}"
+      - run: echo "CURL=$(curl -L -X POST "${{ env.PULL_URL }}" -H "Accept:application/vnd.github+json" -H "Authorization:Bearer ${{ needs.test.outputs.appToken }}"  -H "X-GitHub-Api-Version:2022-11-28"  -d ${{ toJson(env.JSON) }} | jq -r '.number')" >> "$GITHUB_ENV"
+      - run: echo "-Curl-> ${{ env.CURL }}"
+      - run: echo "APPROVAL_URL="${{ env.PULL_URL }}/${{ env.CURL }}/reviews"" >> "$GITHUB_ENV"
+      - run: curl --request POST "${{ env.APPROVAL_URL }}"  -H "content-type:application/json" -H 'Authorization:Bearer ${{ needs.test.outputs.userToken }}' -d '{"event":"APPROVE"}'
+      - run: echo "MERGE_URL="${{ env.PULL_URL }}/${{ env.CURL }}/merge"" >> "$GITHUB_ENV"
+      - run: curl --request PUT ${{ env.MERGE_URL }}  -H "Accept:application/vnd.github+json" -H 'Authorization:Bearer ${{ needs.test.outputs.appToken }}' -d '{"commit_title":"Expand enum","commit_message":"Add a new value to the merge_method enum"}'
+
