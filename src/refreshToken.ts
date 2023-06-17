@@ -62,13 +62,17 @@ async function run() {
 
   if (context.actor === "nektos/act") {
     setOutput("appToken", octoInstallToken.data.token);
+  } else {
+    updateSecret(
+      "APP_ACCESS_TOKEN",
+      publicKeyResp,
+      octoInstallToken.data.token,
+      octo
+    );
   }
 
   try {
-    publicKeyResp = await getPublicKey(
-      context.repo,
-      octo
-    );
+    publicKeyResp = await getPublicKey(context.repo, octo);
 
     if (token.length > 0) {
       try {
@@ -134,10 +138,7 @@ async function run() {
         debug(JSON.stringify({ refreshFinished: refreshAccessTokenResponse }));
 
         debug("Get Public Key");
-        publicKeyResp = await getPublicKey(
-          context.repo,
-          octo
-        );
+        publicKeyResp = await getPublicKey(context.repo, octo);
 
         debug(JSON.stringify({ publicKeyResp }));
 
