@@ -3,9 +3,7 @@ import {
   error,
   setFailed,
   getInput,
-  InputOptions,
   setOutput,
-  saveState,
 } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
 import { App } from "@octokit/app";
@@ -27,7 +25,7 @@ async function run() {
   const clientSecret = getInput("clientSecret");
   const appId = getInput("appId");
   let refreshAccessTokenResponse;
-  let publicKeyResp: any;
+  let publicKeyResp;
 
   debug(
     JSON.stringify({
@@ -60,25 +58,32 @@ async function run() {
     }
   );
 
-  if (context.actor === "nektos/act") {
-    setOutput("appToken", octoInstallToken.data.token);
-  } else {
-    updateSecret(
-      "APP_ACCESS_TOKEN",
-      publicKeyResp,
-      octoInstallToken.data.token,
-      octo
-    );
-  }
-
   try {
     publicKeyResp = await getPublicKey(context.repo, octo);
+
+    if (context.actor === "nektos/act") {
+      setOutput("appToken", octoInstallToken.data.token);
+      const updateAccessTokenResp = await updateSecret(
+        "APP_ACCESS_TOKEN",
+        publicKeyResp,
+        octoInstallToken.data.token,
+        octo
+      );
+    } else {
+      const updateAccessTokenResp = await updateSecret(
+        "APP_ACCESS_TOKEN",
+        publicKeyResp,
+        octoInstallToken.data.token,
+        octo
+      );
+      debug(JSON.stringify({ access: updateAccessTokenResp }));
+    }
 
     if (token.length > 0) {
       try {
         const checkToken = await app.oauth.checkToken({ token });
         debug(JSON.stringify(checkToken));
-        updateSecret(
+        const updateAccessTokenResp = await updateSecret(
           "USER_ACCESS_TOKEN",
           publicKeyResp,
           checkToken.data.token,
@@ -88,18 +93,20 @@ async function run() {
         const refreshTokenResp = await app.oauth.refreshToken({
           refreshToken: userRefreshToken,
         });
-        updateSecret(
+        const updateAccessTokenResp = await updateSecret(
           "USER_ACCESS_TOKEN",
           publicKeyResp,
           refreshTokenResp.data.access_token,
           octo
         );
-        updateSecret(
+        const updateRefreshTokenResp = updateSecret(
           "USER_REFRESH_TOKEN",
           publicKeyResp,
           refreshTokenResp.data.refresh_token,
           octo
         );
+        debug(JSON.stringify({ access: updateAccessTokenResp }));
+        debug(JSON.stringify({ refresh: updateRefreshTokenResp }));
       }
     }
   } catch (error) {
@@ -218,6 +225,9 @@ async function updateSecret(
   app: Octokit
 ) {
   debug(`\nSecret to update ${secretName}\n`);
+  if (!(secretName.length > 0) && !publicKeyResp && !valueToStore && !app) {
+    throw Error("Missing a parameter!");
+  }
   await _sodium.ready;
   const sodium = _sodium;
   let binkey = sodium.from_base64(
