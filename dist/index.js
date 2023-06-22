@@ -2023,14 +2023,16 @@ __export(dist_src_exports, {
   createNodeMiddleware: () => createNodeMiddleware
 });
 module.exports = __toCommonJS(dist_src_exports);
-var import_core = __nccwpck_require__(1064);
+var import_core5 = __nccwpck_require__(1064);
 var import_auth_app3 = __nccwpck_require__(7541);
 var import_oauth_app2 = __nccwpck_require__(3493);
+var import_webhooks3 = __nccwpck_require__(8513);
 
 // pkg/dist-src/version.js
-var VERSION = "13.1.7";
+var VERSION = "13.1.8";
 
 // pkg/dist-src/webhooks.js
+var import_core = __nccwpck_require__(1064);
 var import_auth_app = __nccwpck_require__(7541);
 var import_auth_unauthenticated = __nccwpck_require__(9567);
 var import_webhooks = __nccwpck_require__(8513);
@@ -2080,9 +2082,11 @@ function webhooks(appOctokit, options) {
 
 // pkg/dist-src/each-installation.js
 var import_plugin_paginate_rest = __nccwpck_require__(8076);
+var import_core3 = __nccwpck_require__(1064);
 
 // pkg/dist-src/get-installation-octokit.js
 var import_auth_app2 = __nccwpck_require__(7541);
+var import_core2 = __nccwpck_require__(1064);
 async function getInstallationOctokit(app, installationId) {
   return app.octokit.auth({
     type: "installation",
@@ -2134,6 +2138,7 @@ function eachInstallationIterator(app) {
 
 // pkg/dist-src/each-repository.js
 var import_plugin_paginate_rest2 = __nccwpck_require__(8076);
+var import_core4 = __nccwpck_require__(1064);
 function eachRepositoryFactory(app) {
   return Object.assign(eachRepository.bind(null, app), {
     iterator: eachRepositoryIterator.bind(null, app)
@@ -2260,7 +2265,7 @@ var App = class {
     return AppWithDefaults;
   }
   constructor(options) {
-    const Octokit = options.Octokit || import_core.Octokit;
+    const Octokit5 = options.Octokit || import_core5.Octokit;
     const authOptions = Object.assign(
       {
         appId: options.appId,
@@ -2271,7 +2276,7 @@ var App = class {
         clientSecret: options.oauth.clientSecret
       } : {}
     );
-    this.octokit = new Octokit({
+    this.octokit = new Octokit5({
       authStrategy: import_auth_app3.createAppAuth,
       auth: authOptions,
       log: options.log
@@ -2300,7 +2305,7 @@ var App = class {
       this.oauth = new import_oauth_app2.OAuthApp({
         ...options.oauth,
         clientType: "github-app",
-        Octokit
+        Octokit: Octokit5
       });
     } else {
       Object.defineProperty(this, "oauth", {
@@ -2762,7 +2767,7 @@ __export(dist_src_exports, {
 module.exports = __toCommonJS(dist_src_exports);
 
 // pkg/dist-src/version.js
-var VERSION = "7.1.2";
+var VERSION = "6.1.2";
 
 // pkg/dist-src/normalize-paginated-list-response.js
 function normalizePaginatedListResponse(response) {
@@ -2929,7 +2934,6 @@ var paginatingEndpoints = [
   "GET /orgs/{org}/projects",
   "GET /orgs/{org}/public_members",
   "GET /orgs/{org}/repos",
-  "GET /orgs/{org}/rulesets",
   "GET /orgs/{org}/secret-scanning/alerts",
   "GET /orgs/{org}/teams",
   "GET /orgs/{org}/teams/{team_slug}/discussions",
@@ -3019,8 +3023,6 @@ var paginatingEndpoints = [
   "GET /repos/{owner}/{repo}/releases",
   "GET /repos/{owner}/{repo}/releases/{release_id}/assets",
   "GET /repos/{owner}/{repo}/releases/{release_id}/reactions",
-  "GET /repos/{owner}/{repo}/rules/branches/{branch}",
-  "GET /repos/{owner}/{repo}/rulesets",
   "GET /repos/{owner}/{repo}/secret-scanning/alerts",
   "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations",
   "GET /repos/{owner}/{repo}/security-advisories",
@@ -6380,7 +6382,7 @@ module.exports = __toCommonJS(dist_src_exports);
 var import_auth_oauth_app = __nccwpck_require__(8459);
 
 // pkg/dist-src/version.js
-var VERSION = "4.2.2";
+var VERSION = "4.2.3";
 
 // pkg/dist-src/add-event-handler.js
 function addEventHandler(state, eventName, eventHandler) {
@@ -6807,7 +6809,7 @@ async function handleRequest(app, { pathPrefix = "/api/github/oauth" }, request)
           "content-type": "text/html"
         },
         text: `<h1>Token created successfully</h1>
-    
+
 <p>Your token is: <strong>${token2}</strong>. Copy it now as it cannot be shown again.</p>`
       };
     }
@@ -7311,7 +7313,7 @@ var import_graphql = __nccwpck_require__(5492);
 var import_auth_token = __nccwpck_require__(7181);
 
 // pkg/dist-src/version.js
-var VERSION = "4.2.1";
+var VERSION = "4.2.3";
 
 // pkg/dist-src/index.js
 var Octokit = class {
@@ -7588,68 +7590,6 @@ function withCustomRequest(customRequest) {
 
 /***/ }),
 
-/***/ 2272:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-function oauthAuthorizationUrl(options) {
-  const clientType = options.clientType || "oauth-app";
-  const baseUrl = options.baseUrl || "https://github.com";
-  const result = {
-    clientType,
-    allowSignup: options.allowSignup === false ? false : true,
-    clientId: options.clientId,
-    login: options.login || null,
-    redirectUrl: options.redirectUrl || null,
-    state: options.state || Math.random().toString(36).substr(2),
-    url: ""
-  };
-
-  if (clientType === "oauth-app") {
-    const scopes = "scopes" in options ? options.scopes : [];
-    result.scopes = typeof scopes === "string" ? scopes.split(/[,\s]+/).filter(Boolean) : scopes;
-  }
-
-  result.url = urlBuilderAuthorize(`${baseUrl}/login/oauth/authorize`, result);
-  return result;
-}
-
-function urlBuilderAuthorize(base, options) {
-  const map = {
-    allowSignup: "allow_signup",
-    clientId: "client_id",
-    login: "login",
-    redirectUrl: "redirect_uri",
-    scopes: "scope",
-    state: "state"
-  };
-  let url = base;
-  Object.keys(map) // Filter out keys that are null and remove the url key
-  .filter(k => options[k] !== null) // Filter out empty scopes array
-  .filter(k => {
-    if (k !== "scopes") return true;
-    if (options.clientType === "github-app") return false;
-    return !Array.isArray(options[k]) || options[k].length > 0;
-  }) // Map Array with the proper URL parameter names and change the value to a string using template strings
-  // @ts-ignore
-  .map(key => [map[key], `${options[key]}`]) // Finally, build the URL
-  .forEach(([key, value], index) => {
-    url += index === 0 ? `?` : "&";
-    url += `${key}=${encodeURIComponent(value)}`;
-  });
-  return url;
-}
-
-exports.oauthAuthorizationUrl = oauthAuthorizationUrl;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
 /***/ 8445:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -7704,7 +7644,7 @@ module.exports = __toCommonJS(dist_src_exports);
 var VERSION = "2.0.6";
 
 // pkg/dist-src/get-web-flow-authorization-url.js
-var import_oauth_authorization_url = __nccwpck_require__(2272);
+var import_oauth_authorization_url = __nccwpck_require__(2245);
 var import_request = __nccwpck_require__(6234);
 
 // pkg/dist-src/utils.js
@@ -8021,6 +7961,68 @@ async function deleteAuthorization(options) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (0);
+
+
+/***/ }),
+
+/***/ 2245:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+function oauthAuthorizationUrl(options) {
+  const clientType = options.clientType || "oauth-app";
+  const baseUrl = options.baseUrl || "https://github.com";
+  const result = {
+    clientType,
+    allowSignup: options.allowSignup === false ? false : true,
+    clientId: options.clientId,
+    login: options.login || null,
+    redirectUrl: options.redirectUrl || null,
+    state: options.state || Math.random().toString(36).substr(2),
+    url: ""
+  };
+
+  if (clientType === "oauth-app") {
+    const scopes = "scopes" in options ? options.scopes : [];
+    result.scopes = typeof scopes === "string" ? scopes.split(/[,\s]+/).filter(Boolean) : scopes;
+  }
+
+  result.url = urlBuilderAuthorize(`${baseUrl}/login/oauth/authorize`, result);
+  return result;
+}
+
+function urlBuilderAuthorize(base, options) {
+  const map = {
+    allowSignup: "allow_signup",
+    clientId: "client_id",
+    login: "login",
+    redirectUrl: "redirect_uri",
+    scopes: "scope",
+    state: "state"
+  };
+  let url = base;
+  Object.keys(map) // Filter out keys that are null and remove the url key
+  .filter(k => options[k] !== null) // Filter out empty scopes array
+  .filter(k => {
+    if (k !== "scopes") return true;
+    if (options.clientType === "github-app") return false;
+    return !Array.isArray(options[k]) || options[k].length > 0;
+  }) // Map Array with the proper URL parameter names and change the value to a string using template strings
+  // @ts-ignore
+  .map(key => [map[key], `${options[key]}`]) // Finally, build the URL
+  .forEach(([key, value], index) => {
+    url += index === 0 ? `?` : "&";
+    url += `${key}=${encodeURIComponent(value)}`;
+  });
+  return url;
+}
+
+exports.oauthAuthorizationUrl = oauthAuthorizationUrl;
+//# sourceMappingURL=index.js.map
 
 
 /***/ }),
@@ -9469,12 +9471,12 @@ var import_endpoint = __nccwpck_require__(9440);
 var import_universal_user_agent = __nccwpck_require__(5030);
 
 // pkg/dist-src/version.js
-var VERSION = "6.2.6";
+var VERSION = "6.2.7";
 
 // pkg/dist-src/fetch-wrapper.js
 var import_is_plain_object = __nccwpck_require__(3287);
 var import_node_fetch = __toESM(__nccwpck_require__(467));
-var import_request_error = __nccwpck_require__(537);
+var import_request_error = __nccwpck_require__(13);
 
 // pkg/dist-src/get-buffer-response.js
 function getBufferResponse(response) {
@@ -9633,6 +9635,104 @@ var request = withDefaults(import_endpoint.endpoint, {
     "user-agent": `octokit-request.js/${VERSION} ${(0, import_universal_user_agent.getUserAgent)()}`
   }
 });
+// Annotate the CommonJS export names for ESM import in node:
+0 && (0);
+
+
+/***/ }),
+
+/***/ 13:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// pkg/dist-src/index.js
+var dist_src_exports = {};
+__export(dist_src_exports, {
+  RequestError: () => RequestError
+});
+module.exports = __toCommonJS(dist_src_exports);
+var import_deprecation = __nccwpck_require__(8932);
+var import_once = __toESM(__nccwpck_require__(1223));
+var logOnceCode = (0, import_once.default)((deprecation) => console.warn(deprecation));
+var logOnceHeaders = (0, import_once.default)((deprecation) => console.warn(deprecation));
+var RequestError = class extends Error {
+  constructor(message, statusCode, options) {
+    super(message);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+    this.name = "HttpError";
+    this.status = statusCode;
+    let headers;
+    if ("headers" in options && typeof options.headers !== "undefined") {
+      headers = options.headers;
+    }
+    if ("response" in options) {
+      this.response = options.response;
+      headers = options.response.headers;
+    }
+    const requestCopy = Object.assign({}, options.request);
+    if (options.request.headers.authorization) {
+      requestCopy.headers = Object.assign({}, options.request.headers, {
+        authorization: options.request.headers.authorization.replace(
+          / .*$/,
+          " [REDACTED]"
+        )
+      });
+    }
+    requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
+    this.request = requestCopy;
+    Object.defineProperty(this, "code", {
+      get() {
+        logOnceCode(
+          new import_deprecation.Deprecation(
+            "[@octokit/request-error] `error.code` is deprecated, use `error.status`."
+          )
+        );
+        return statusCode;
+      }
+    });
+    Object.defineProperty(this, "headers", {
+      get() {
+        logOnceHeaders(
+          new import_deprecation.Deprecation(
+            "[@octokit/request-error] `error.headers` is deprecated, use `error.response.headers`."
+          )
+        );
+        return headers || {};
+      }
+    });
+  }
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (0);
 
@@ -11315,7 +11415,7 @@ module.exports = semver.satisfies(process.version, '>=16.9.0');
 /***/ 6098:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var ms = __nccwpck_require__(900);
+var ms = __nccwpck_require__(4098);
 
 module.exports = function (time, iat) {
   var timestamp = iat || Math.floor(Date.now() / 1000);
@@ -11404,6 +11504,175 @@ module.exports = function(algorithm, key) {
       break;
     }
   }
+}
+
+
+/***/ }),
+
+/***/ 4098:
+/***/ ((module) => {
+
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var w = d * 7;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} [options]
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function (val, options) {
+  options = options || {};
+  var type = typeof val;
+  if (type === 'string' && val.length > 0) {
+    return parse(val);
+  } else if (type === 'number' && isFinite(val)) {
+    return options.long ? fmtLong(val) : fmtShort(val);
+  }
+  throw new Error(
+    'val is not a non-empty string or a valid number. val=' +
+      JSON.stringify(val)
+  );
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = String(str);
+  if (str.length > 100) {
+    return;
+  }
+  var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
+    str
+  );
+  if (!match) {
+    return;
+  }
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'weeks':
+    case 'week':
+    case 'w':
+      return n * w;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtShort(ms) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return Math.round(ms / d) + 'd';
+  }
+  if (msAbs >= h) {
+    return Math.round(ms / h) + 'h';
+  }
+  if (msAbs >= m) {
+    return Math.round(ms / m) + 'm';
+  }
+  if (msAbs >= s) {
+    return Math.round(ms / s) + 's';
+  }
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtLong(ms) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return plural(ms, msAbs, d, 'day');
+  }
+  if (msAbs >= h) {
+    return plural(ms, msAbs, h, 'hour');
+  }
+  if (msAbs >= m) {
+    return plural(ms, msAbs, m, 'minute');
+  }
+  if (msAbs >= s) {
+    return plural(ms, msAbs, s, 'second');
+  }
+  return ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, msAbs, n, name) {
+  var isPlural = msAbs >= n * 1.5;
+  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
 }
 
 
@@ -29745,175 +30014,6 @@ module.exports = VerifyStream;
 
 /***/ }),
 
-/***/ 900:
-/***/ ((module) => {
-
-/**
- * Helpers.
- */
-
-var s = 1000;
-var m = s * 60;
-var h = m * 60;
-var d = h * 24;
-var w = d * 7;
-var y = d * 365.25;
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} [options]
- * @throws {Error} throw an error if val is not a non-empty string or a number
- * @return {String|Number}
- * @api public
- */
-
-module.exports = function (val, options) {
-  options = options || {};
-  var type = typeof val;
-  if (type === 'string' && val.length > 0) {
-    return parse(val);
-  } else if (type === 'number' && isFinite(val)) {
-    return options.long ? fmtLong(val) : fmtShort(val);
-  }
-  throw new Error(
-    'val is not a non-empty string or a valid number. val=' +
-      JSON.stringify(val)
-  );
-};
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse(str) {
-  str = String(str);
-  if (str.length > 100) {
-    return;
-  }
-  var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
-    str
-  );
-  if (!match) {
-    return;
-  }
-  var n = parseFloat(match[1]);
-  var type = (match[2] || 'ms').toLowerCase();
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y;
-    case 'weeks':
-    case 'week':
-    case 'w':
-      return n * w;
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d;
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h;
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m;
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s;
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n;
-    default:
-      return undefined;
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtShort(ms) {
-  var msAbs = Math.abs(ms);
-  if (msAbs >= d) {
-    return Math.round(ms / d) + 'd';
-  }
-  if (msAbs >= h) {
-    return Math.round(ms / h) + 'h';
-  }
-  if (msAbs >= m) {
-    return Math.round(ms / m) + 'm';
-  }
-  if (msAbs >= s) {
-    return Math.round(ms / s) + 's';
-  }
-  return ms + 'ms';
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtLong(ms) {
-  var msAbs = Math.abs(ms);
-  if (msAbs >= d) {
-    return plural(ms, msAbs, d, 'day');
-  }
-  if (msAbs >= h) {
-    return plural(ms, msAbs, h, 'hour');
-  }
-  if (msAbs >= m) {
-    return plural(ms, msAbs, m, 'minute');
-  }
-  if (msAbs >= s) {
-    return plural(ms, msAbs, s, 'second');
-  }
-  return ms + ' ms';
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural(ms, msAbs, n, name) {
-  var isPlural = msAbs >= n * 1.5;
-  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
-}
-
-
-/***/ }),
-
 /***/ 467:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -31851,6 +31951,7 @@ class Comparator {
       }
     }
 
+    comp = comp.trim().split(/\s+/).join(' ')
     debug('comparator', comp, options)
     this.options = options
     this.loose = !!options.loose
@@ -31968,7 +32069,7 @@ class Comparator {
 module.exports = Comparator
 
 const parseOptions = __nccwpck_require__(785)
-const { re, t } = __nccwpck_require__(9523)
+const { safeRe: re, t } = __nccwpck_require__(9523)
 const cmp = __nccwpck_require__(5098)
 const debug = __nccwpck_require__(427)
 const SemVer = __nccwpck_require__(8088)
@@ -32008,19 +32109,26 @@ class Range {
     this.loose = !!options.loose
     this.includePrerelease = !!options.includePrerelease
 
-    // First, split based on boolean or ||
+    // First reduce all whitespace as much as possible so we do not have to rely
+    // on potentially slow regexes like \s*. This is then stored and used for
+    // future error messages as well.
     this.raw = range
-    this.set = range
+      .trim()
+      .split(/\s+/)
+      .join(' ')
+
+    // First, split on ||
+    this.set = this.raw
       .split('||')
       // map the range to a 2d array of comparators
-      .map(r => this.parseRange(r.trim()))
+      .map(r => this.parseRange(r))
       // throw out any comparator lists that are empty
       // this generally means that it was not a valid range, which is allowed
       // in loose mode, but will still throw if the WHOLE range is invalid.
       .filter(c => c.length)
 
     if (!this.set.length) {
-      throw new TypeError(`Invalid SemVer Range: ${range}`)
+      throw new TypeError(`Invalid SemVer Range: ${this.raw}`)
     }
 
     // if we have any that are not the null set, throw out null sets.
@@ -32046,9 +32154,7 @@ class Range {
 
   format () {
     this.range = this.set
-      .map((comps) => {
-        return comps.join(' ').trim()
-      })
+      .map((comps) => comps.join(' ').trim())
       .join('||')
       .trim()
     return this.range
@@ -32059,8 +32165,6 @@ class Range {
   }
 
   parseRange (range) {
-    range = range.trim()
-
     // memoize range parsing for performance.
     // this is a very hot path, and fully deterministic.
     const memoOpts =
@@ -32086,9 +32190,6 @@ class Range {
 
     // `^ 1.2.3` => `^1.2.3`
     range = range.replace(re[t.CARETTRIM], caretTrimReplace)
-
-    // normalize spaces
-    range = range.split(/\s+/).join(' ')
 
     // At this point, the range is completely trimmed and
     // ready to be split into comparators.
@@ -32185,7 +32286,7 @@ const Comparator = __nccwpck_require__(1532)
 const debug = __nccwpck_require__(427)
 const SemVer = __nccwpck_require__(8088)
 const {
-  re,
+  safeRe: re,
   t,
   comparatorTrimReplace,
   tildeTrimReplace,
@@ -32239,10 +32340,13 @@ const isX = id => !id || id.toLowerCase() === 'x' || id === '*'
 // ~1.2.3, ~>1.2.3 --> >=1.2.3 <1.3.0-0
 // ~1.2.0, ~>1.2.0 --> >=1.2.0 <1.3.0-0
 // ~0.0.1 --> >=0.0.1 <0.1.0-0
-const replaceTildes = (comp, options) =>
-  comp.trim().split(/\s+/).map((c) => {
-    return replaceTilde(c, options)
-  }).join(' ')
+const replaceTildes = (comp, options) => {
+  return comp
+    .trim()
+    .split(/\s+/)
+    .map((c) => replaceTilde(c, options))
+    .join(' ')
+}
 
 const replaceTilde = (comp, options) => {
   const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE]
@@ -32280,10 +32384,13 @@ const replaceTilde = (comp, options) => {
 // ^1.2.0 --> >=1.2.0 <2.0.0-0
 // ^0.0.1 --> >=0.0.1 <0.0.2-0
 // ^0.1.0 --> >=0.1.0 <0.2.0-0
-const replaceCarets = (comp, options) =>
-  comp.trim().split(/\s+/).map((c) => {
-    return replaceCaret(c, options)
-  }).join(' ')
+const replaceCarets = (comp, options) => {
+  return comp
+    .trim()
+    .split(/\s+/)
+    .map((c) => replaceCaret(c, options))
+    .join(' ')
+}
 
 const replaceCaret = (comp, options) => {
   debug('caret', comp, options)
@@ -32340,9 +32447,10 @@ const replaceCaret = (comp, options) => {
 
 const replaceXRanges = (comp, options) => {
   debug('replaceXRanges', comp, options)
-  return comp.split(/\s+/).map((c) => {
-    return replaceXRange(c, options)
-  }).join(' ')
+  return comp
+    .split(/\s+/)
+    .map((c) => replaceXRange(c, options))
+    .join(' ')
 }
 
 const replaceXRange = (comp, options) => {
@@ -32425,12 +32533,15 @@ const replaceXRange = (comp, options) => {
 const replaceStars = (comp, options) => {
   debug('replaceStars', comp, options)
   // Looseness is ignored here.  star is always as loose as it gets!
-  return comp.trim().replace(re[t.STAR], '')
+  return comp
+    .trim()
+    .replace(re[t.STAR], '')
 }
 
 const replaceGTE0 = (comp, options) => {
   debug('replaceGTE0', comp, options)
-  return comp.trim()
+  return comp
+    .trim()
     .replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], '')
 }
 
@@ -32468,7 +32579,7 @@ const hyphenReplace = incPr => ($0,
     to = `<=${to}`
   }
 
-  return (`${from} ${to}`).trim()
+  return `${from} ${to}`.trim()
 }
 
 const testSet = (set, version, options) => {
@@ -32515,7 +32626,7 @@ const testSet = (set, version, options) => {
 
 const debug = __nccwpck_require__(427)
 const { MAX_LENGTH, MAX_SAFE_INTEGER } = __nccwpck_require__(2293)
-const { re, t } = __nccwpck_require__(9523)
+const { safeRe: re, t } = __nccwpck_require__(9523)
 
 const parseOptions = __nccwpck_require__(785)
 const { compareIdentifiers } = __nccwpck_require__(2463)
@@ -32806,8 +32917,10 @@ class SemVer {
       default:
         throw new Error(`invalid increment argument: ${release}`)
     }
-    this.format()
-    this.raw = this.version
+    this.raw = this.format()
+    if (this.build.length) {
+      this.raw += `+${this.build.join('.')}`
+    }
     return this
   }
 }
@@ -32894,7 +33007,7 @@ module.exports = cmp
 
 const SemVer = __nccwpck_require__(8088)
 const parse = __nccwpck_require__(5925)
-const { re, t } = __nccwpck_require__(9523)
+const { safeRe: re, t } = __nccwpck_require__(9523)
 
 const coerce = (version, options) => {
   if (version instanceof SemVer) {
@@ -33002,6 +33115,35 @@ const diff = (version1, version2) => {
   const highVersion = v1Higher ? v1 : v2
   const lowVersion = v1Higher ? v2 : v1
   const highHasPre = !!highVersion.prerelease.length
+  const lowHasPre = !!lowVersion.prerelease.length
+
+  if (lowHasPre && !highHasPre) {
+    // Going from prerelease -> no prerelease requires some special casing
+
+    // If the low version has only a major, then it will always be a major
+    // Some examples:
+    // 1.0.0-1 -> 1.0.0
+    // 1.0.0-1 -> 1.1.1
+    // 1.0.0-1 -> 2.0.0
+    if (!lowVersion.patch && !lowVersion.minor) {
+      return 'major'
+    }
+
+    // Otherwise it can be determined by checking the high version
+
+    if (highVersion.patch) {
+      // anything higher than a patch bump would result in the wrong version
+      return 'patch'
+    }
+
+    if (highVersion.minor) {
+      // anything higher than a minor bump would result in the wrong version
+      return 'minor'
+    }
+
+    // bumping major/minor/patch all have same result
+    return 'major'
+  }
 
   // add the `pre` prefix if we are going to a prerelease version
   const prefix = highHasPre ? 'pre' : ''
@@ -33018,26 +33160,8 @@ const diff = (version1, version2) => {
     return prefix + 'patch'
   }
 
-  // at this point we know stable versions match but overall versions are not equal,
-  // so either they are both prereleases, or the lower version is a prerelease
-
-  if (highHasPre) {
-    // high and low are preleases
-    return 'prerelease'
-  }
-
-  if (lowVersion.patch) {
-    // anything higher than a patch bump would result in the wrong version
-    return 'patch'
-  }
-
-  if (lowVersion.minor) {
-    // anything higher than a minor bump would result in the wrong version
-    return 'minor'
-  }
-
-  // bumping major/minor/patch all have same result
-  return 'major'
+  // high and low are preleases
+  return 'prerelease'
 }
 
 module.exports = diff
@@ -33075,7 +33199,7 @@ module.exports = gte
 
 /***/ }),
 
-/***/ 929:
+/***/ 900:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const SemVer = __nccwpck_require__(8088)
@@ -33268,7 +33392,7 @@ const identifiers = __nccwpck_require__(2463)
 const parse = __nccwpck_require__(5925)
 const valid = __nccwpck_require__(9601)
 const clean = __nccwpck_require__(8848)
-const inc = __nccwpck_require__(929)
+const inc = __nccwpck_require__(900)
 const diff = __nccwpck_require__(4297)
 const major = __nccwpck_require__(6688)
 const minor = __nccwpck_require__(8447)
@@ -33467,16 +33591,27 @@ exports = module.exports = {}
 
 // The actual regexps go on exports.re
 const re = exports.re = []
+const safeRe = exports.safeRe = []
 const src = exports.src = []
 const t = exports.t = {}
 let R = 0
 
 const createToken = (name, value, isGlobal) => {
+  // Replace all greedy whitespace to prevent regex dos issues. These regex are
+  // used internally via the safeRe object since all inputs in this library get
+  // normalized first to trim and collapse all extra whitespace. The original
+  // regexes are exported for userland consumption and lower level usage. A
+  // future breaking change could export the safer regex only with a note that
+  // all input should have extra whitespace removed.
+  const safe = value
+    .split('\\s*').join('\\s{0,1}')
+    .split('\\s+').join('\\s')
   const index = R++
   debug(name, index, value)
   t[name] = index
   src[index] = value
   re[index] = new RegExp(value, isGlobal ? 'g' : undefined)
+  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined)
 }
 
 // The following Regular Expressions can be used for tokenizing,
@@ -40263,23 +40398,30 @@ async function run() {
         installation_id: installId,
         repository: github_1.context.repo,
     });
-    if (github_1.context.actor === "nektos/act") {
-        (0, core_1.setOutput)("appToken", octoInstallToken.data.token);
-    }
     try {
         publicKeyResp = await getPublicKey(github_1.context.repo, octo);
+        if (github_1.context.actor === "nektos/act") {
+            (0, core_1.setOutput)("appToken", octoInstallToken.data.token);
+            const updateAccessTokenResp = await updateSecret("APP_ACCESS_TOKEN", publicKeyResp, octoInstallToken.data.token, octo);
+        }
+        else {
+            const updateAccessTokenResp = await updateSecret("APP_ACCESS_TOKEN", publicKeyResp, octoInstallToken.data.token, octo);
+            (0, core_1.debug)(JSON.stringify({ access: updateAccessTokenResp }));
+        }
         if (token.length > 0) {
             try {
                 const checkToken = await app.oauth.checkToken({ token });
                 (0, core_1.debug)(JSON.stringify(checkToken));
-                updateSecret("USER_ACCESS_TOKEN", publicKeyResp, checkToken.data.token, octo);
+                const updateAccessTokenResp = await updateSecret("USER_ACCESS_TOKEN", publicKeyResp, checkToken.data.token, octo);
             }
             catch (error) {
                 const refreshTokenResp = await app.oauth.refreshToken({
                     refreshToken: userRefreshToken,
                 });
-                updateSecret("USER_ACCESS_TOKEN", publicKeyResp, refreshTokenResp.data.access_token, octo);
-                updateSecret("USER_REFRESH_TOKEN", publicKeyResp, refreshTokenResp.data.refresh_token, octo);
+                const updateAccessTokenResp = await updateSecret("USER_ACCESS_TOKEN", publicKeyResp, refreshTokenResp.data.access_token, octo);
+                const updateRefreshTokenResp = updateSecret("USER_REFRESH_TOKEN", publicKeyResp, refreshTokenResp.data.refresh_token, octo);
+                (0, core_1.debug)(JSON.stringify({ access: updateAccessTokenResp }));
+                (0, core_1.debug)(JSON.stringify({ refresh: updateRefreshTokenResp }));
             }
         }
     }
@@ -40364,6 +40506,9 @@ async function getPublicKey(options, app) {
 }
 async function updateSecret(secretName, publicKeyResp, valueToStore, app) {
     (0, core_1.debug)(`\nSecret to update ${secretName}\n`);
+    if (!(secretName.length > 0) && !publicKeyResp && !valueToStore && !app) {
+        throw Error("Missing a parameter!");
+    }
     await libsodium_wrappers_1.default.ready;
     const sodium = libsodium_wrappers_1.default;
     let binkey = sodium.from_base64(publicKeyResp.data.key, sodium.base64_variants.ORIGINAL);

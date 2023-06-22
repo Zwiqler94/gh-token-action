@@ -48,8 +48,8 @@ jobs:
             cd GH-Actions
             git remote set-url origin https://github-actions:${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
             git pull --tags
-            git config --local user.name 'github-actions'
-            git config --local user.email 'github-actions@github.com'
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email 'github-actions[bot]@github.com'
             git config --local push.autoSetupRemote true
             git config -l
             git checkout -b "${{ env.BRANCH }}"

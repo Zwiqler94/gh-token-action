@@ -3,9 +3,7 @@ import {
   error,
   setFailed,
   getInput,
-  InputOptions,
   setOutput,
-  saveState,
 } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
 import { App } from "@octokit/app";
@@ -27,7 +25,7 @@ async function run() {
   const clientSecret = getInput("clientSecret");
   const appId = getInput("appId");
   let refreshAccessTokenResponse;
-  let publicKeyResp: any;
+  let publicKeyResp;
 
   debug(
     JSON.stringify({
