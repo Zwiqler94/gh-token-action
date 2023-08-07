@@ -15,7 +15,7 @@
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
-    "@kie/mock-github": "^1.1.0",
+    "@kie/mock-github": "^2.0.0",
     "@octokit/app": "^14.0.0",
     "@octokit/types": "^11.1.0",
     "@vercel/ncc": "^0.36.1",
