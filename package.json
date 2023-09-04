@@ -28,6 +28,6 @@
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.2",
-    "@types/libsodium-wrappers": "^0.7.10"
+    "@types/libsodium-wrappers": "^0.7.11"
   }
 }
