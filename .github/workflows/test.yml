@@ -54,7 +54,7 @@ jobs:
             git config -l
             git checkout -b "${{ env.BRANCH }}"
             git push
-            npm version minor
+            npm version patch
             git push --follow-tags
       - run: echo "PULL_URL="${{ env.REPO_URL }}/pulls"" >> "$GITHUB_ENV"
       - run: echo "-URL-> ${{ env.PULL_URL }}"
