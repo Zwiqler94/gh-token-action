@@ -47,6 +47,7 @@ jobs:
             git clone https://${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
             cd GH-Actions
             git remote set-url origin https://github-actions:${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
+            git pull 
             git pull --tags
             git config --local user.name 'github-actions[bot]'
             git config --local user.email 'github-actions[bot]@github.com'
