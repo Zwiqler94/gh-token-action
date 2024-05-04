@@ -47,6 +47,7 @@ jobs:
             git clone https://${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
             cd GH-Actions
             git remote set-url origin https://github-actions:${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git
+            git pull 
             git pull --tags
             git config --local user.name 'github-actions[bot]'
             git config --local user.email 'github-actions[bot]@github.com'
@@ -54,7 +55,7 @@ jobs:
             git config -l
             git checkout -b "${{ env.BRANCH }}"
             git push
-            npm version minor
+            npm version patch
             git push --follow-tags
       - run: echo "PULL_URL="${{ env.REPO_URL }}/pulls"" >> "$GITHUB_ENV"
       - run: echo "-URL-> ${{ env.PULL_URL }}"
