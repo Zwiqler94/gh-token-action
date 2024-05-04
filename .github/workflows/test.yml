@@ -7,7 +7,7 @@ env:
   APPROVAL_URL: ""
   JSON: ""
   CURL: 0
-  BRANCH: finaltest
+  BRANCH: final-test
 permissions: write-all
 jobs:
   test:
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           token: ${{ needs.test.outputs.appToken }}
-      - name: Use Node.js 18
+      - name: Use Node.js 20
         uses: actions/setup-node@v3
         with:
           node-version: 20

@@ -1,23 +1,14 @@
-import {
-  debug,
-  error,
-  setFailed,
-  getInput,
-  setOutput,
-} from "@actions/core";
+import { debug, error, setFailed, getInput, setOutput } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
-import { App } from "@octokit/app";
+import { App, GetInstallationOctokitInterface } from "@octokit/app";
 import { Octokit } from "@octokit/core";
 import { sign } from "jsonwebtoken";
 import _sodium from "libsodium-wrappers";
-
-// const debug = (val: any) => core.debug(JSON.stringify(val));
 
 async function run() {
   debug("Start Token Check");
   debug(`Repo info: ${JSON.stringify(context.repo)}`);
 
-  // const optionalInput: InputOptions = { required: false };
   const token = getInput("token");
   const userRefreshToken = getInput("userRefreshToken");
   const privateKey = getInput("privateKey");
@@ -49,7 +40,7 @@ async function run() {
     oauth: { clientId, clientSecret },
   });
 
-  const octo: Octokit = await app.getInstallationOctokit(installId);
+  const octo = await app.getInstallationOctokit(installId);
   const octoInstallToken = await octo.request(
     "POST /app/installations/{installation_id}/access_tokens",
     {
@@ -67,14 +58,14 @@ async function run() {
         "APP_ACCESS_TOKEN",
         publicKeyResp,
         octoInstallToken.data.token,
-        octo
+        octo as Octokit
       );
     } else {
       const updateAccessTokenResp = await updateSecret(
         "APP_ACCESS_TOKEN",
         publicKeyResp,
         octoInstallToken.data.token,
-        octo
+        octo as Octokit
       );
       debug(JSON.stringify({ access: updateAccessTokenResp }));
     }
@@ -87,7 +78,7 @@ async function run() {
           "USER_ACCESS_TOKEN",
           publicKeyResp,
           checkToken.data.token,
-          octo
+          octo as Octokit
         );
       } catch (error: any) {
         const refreshTokenResp = await app.oauth.refreshToken({
@@ -97,13 +88,13 @@ async function run() {
           "USER_ACCESS_TOKEN",
           publicKeyResp,
           refreshTokenResp.data.access_token,
-          octo
+          octo as Octokit
         );
         const updateRefreshTokenResp = updateSecret(
           "USER_REFRESH_TOKEN",
           publicKeyResp,
           refreshTokenResp.data.refresh_token,
-          octo
+          octo as Octokit
         );
         debug(JSON.stringify({ access: updateAccessTokenResp }));
         debug(JSON.stringify({ refresh: updateRefreshTokenResp }));
@@ -157,7 +148,7 @@ async function run() {
                 "USER_ACCESS_TOKEN",
                 publicKeyResp,
                 refreshAccessTokenResponse.data.access_token,
-                octo
+                octo as Octokit
               );
 
               debug(JSON.stringify({ access: updateAccessTokenResp }));
@@ -166,7 +157,7 @@ async function run() {
                 "USER_REFRESH_TOKEN",
                 publicKeyResp,
                 refreshAccessTokenResponse.data.refresh_token,
-                octo
+                octo as Octokit
               );
 
               debug(JSON.stringify({ refresh: updateRefreshTokenResp }));
@@ -196,7 +187,7 @@ async function getPublicKey(
     owner: string;
     repo: string;
   },
-  app: Octokit
+  app: any
 ) {
   debug(`repo: ${JSON.stringify(options)}`);
 
@@ -222,7 +213,7 @@ async function updateSecret(
   secretName: string,
   publicKeyResp: any,
   valueToStore: any,
-  app: Octokit
+  app: any
 ) {
   debug(`\nSecret to update ${secretName}\n`);
   if (!(secretName.length > 0) && !publicKeyResp && !valueToStore && !app) {
