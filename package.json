@@ -20,7 +20,7 @@
     "@octokit/types": "^13.5.0",
     "@vercel/ncc": "^0.38.1",
     "jsonwebtoken": "^9.0.2",
-    "libsodium-wrappers": "^0.7.13",
+    "libsodium-wrappers": "^0.7.14",
     "open": "^10.1.0",
     "openssl": "^2.0.0",
     "tslib": "^2.6.3",
