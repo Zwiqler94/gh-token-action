@@ -24,7 +24,7 @@
     "open": "^10.1.0",
     "openssl": "^2.0.0",
     "tslib": "^2.6.3",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.6",
