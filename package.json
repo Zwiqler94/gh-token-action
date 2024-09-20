@@ -23,7 +23,7 @@
     "libsodium-wrappers": "^0.7.14",
     "open": "^10.1.0",
     "openssl": "^2.0.0",
-    "tslib": "^2.6.3",
+    "tslib": "^2.7.0",
     "typescript": "^5.4.5"
   },
   "devDependencies": {
