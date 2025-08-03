@@ -18,7 +18,7 @@ jobs:
       userToken: ${{ steps.A.outputs.userToken }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: A
         id: A
         uses: ./
@@ -34,13 +34,13 @@ jobs:
     needs: [test]
     steps:
       - run: echo "${{ toJson(env) }}"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ needs.test.outputs.appToken }}
-      - name: Use Node.js 20
-        uses: actions/setup-node@v3
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: version
         run: |
             echo "https://${{ needs.test.outputs.appToken }}@github.com/Zwiqler94/GH-Actions.git"

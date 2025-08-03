@@ -13,22 +13,21 @@
   "author": "Jacob Zwickler",
   "license": "ISC",
   "dependencies": {
-    "@actions/core": "^1.10.1",
-    "@actions/github": "^6.0.0",
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1",
     "@kie/mock-github": "^2.0.1",
-    "@octokit/app": "^15.1.0",
-    "@octokit/types": "^13.5.0",
-    "@types/node": "^24.1.0",
-    "@vercel/ncc": "^0.38.1",
+    "@octokit/app": "^16.0.1",
+    "@octokit/types": "^14.1.0",
+    "@vercel/ncc": "^0.38.3",
     "jsonwebtoken": "^9.0.2",
-    "libsodium-wrappers": "^0.7.14",
-    "open": "^10.1.0",
+    "libsodium-wrappers": "^0.7.15",
+    "open": "^10.2.0",
     "openssl": "^2.0.0",
-    "tslib": "^2.6.3",
-    "typescript": "^5.4.5"
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.2"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/libsodium-wrappers": "^0.7.14"
   }
 }
