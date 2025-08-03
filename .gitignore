@@ -4,3 +4,4 @@ privatekey.pem
 .secrets
 .tsbuild
 .vscode
+.DS_Store
