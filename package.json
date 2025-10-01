@@ -18,7 +18,7 @@
     "@kie/mock-github": "^2.0.1",
     "@octokit/app": "^16.0.1",
     "@octokit/types": "^14.1.0",
-    "@vercel/ncc": "^0.38.3",
+    "@vercel/ncc": "^0.38.4",
     "jsonwebtoken": "^9.0.2",
     "libsodium-wrappers": "^0.7.15",
     "open": "^10.2.0",
