@@ -38857,21 +38857,33 @@ async function run() {
             privateKey: inputs.privateKey,
             oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
         });
+        (0,core.info)("Resolving installation id");
         const installationId = await resolveInstallationId(app, inputs.installationId);
+        (0,core.info)(`Resolved installation id ${installationId}`);
         const installationOctokit = await app.getInstallationOctokit(installationId);
+        (0,core.info)("Requesting installation access token");
         const installationToken = await requestInstallationToken(installationOctokit, installationId);
+        (0,core.info)("Installation access token acquired");
         const publicKeyResp = await getPublicKey(installationOctokit);
+        (0,core.info)("Repository public key fetched");
         await updateSecret("APP_ACCESS_TOKEN", publicKeyResp, installationToken.token, installationOctokit);
-        if (github.context.actor === "nektos/act") {
-            (0,core.setOutput)("appToken", installationToken.token);
-        }
-        await ensureUserTokens({
+        (0,core.info)("APP_ACCESS_TOKEN secret updated");
+        const shouldExposeTokens = inputs.exposeTokens || github.context.actor === "nektos/act";
+        (0,core.info)("Ensuring user tokens are valid");
+        const userTokens = await ensureUserTokens({
             app,
             installationOctokit,
             publicKeyResp,
             token: inputs.token,
             userRefreshToken: inputs.userRefreshToken,
         });
+        (0,core.info)("User token handling completed");
+        if (shouldExposeTokens) {
+            (0,core.setOutput)("appToken", installationToken.token);
+            if (userTokens?.userAccessToken) {
+                (0,core.setOutput)("userToken", userTokens.userAccessToken);
+            }
+        }
         (0,core.info)("GitHub App credentials refreshed successfully.");
     }
     catch (runError) {
@@ -38887,6 +38899,7 @@ function getInputs() {
     const clientSecret = (0,core.getInput)("clientSecret", { required: true });
     const appId = (0,core.getInput)("appId", { required: true });
     const installationIdInput = (0,core.getInput)("installationId");
+    const exposeTokens = (0,core.getBooleanInput)("exposeTokens");
     let installationId;
     if (installationIdInput) {
         installationId = Number.parseInt(installationIdInput, 10);
@@ -38902,6 +38915,7 @@ function getInputs() {
         clientSecret,
         appId,
         installationId,
+        exposeTokens,
     };
 }
 function maskSensitiveInputs(inputs) {
@@ -38953,15 +38967,15 @@ async function ensureUserTokens(params) {
     const { app, installationOctokit, publicKeyResp, token, userRefreshToken } = params;
     if (!token && !userRefreshToken) {
         (0,core.debug)("No user token inputs provided; skipping user token rotation.");
-        return;
+        return undefined;
     }
     if (token) {
         try {
-            (0,core.debug)("Checking existing user token validity.");
+            (0,core.info)("Checking existing user token validity");
             const checkToken = await app.oauth.checkToken({ token });
             await updateSecret("USER_ACCESS_TOKEN", publicKeyResp, checkToken.data.token, installationOctokit);
-            (0,core.debug)("User access token is still valid.");
-            return;
+            (0,core.info)("User access token is still valid");
+            return { userAccessToken: checkToken.data.token };
         }
         catch (checkError) {
             (0,core.debug)(`Provided user token is invalid: ${formatError(checkError)}`);
@@ -38970,7 +38984,7 @@ async function ensureUserTokens(params) {
     if (!userRefreshToken) {
         throw new Error("userRefreshToken input is required when the provided token is invalid.");
     }
-    (0,core.debug)("Refreshing user OAuth token using provided refresh token.");
+    (0,core.info)("Refreshing user OAuth token using provided refresh token");
     const refreshed = await app.oauth.refreshToken({
         refreshToken: userRefreshToken,
     });
@@ -38978,7 +38992,11 @@ async function ensureUserTokens(params) {
     (0,core.setSecret)(refreshed.data.refresh_token);
     await updateSecret("USER_ACCESS_TOKEN", publicKeyResp, refreshed.data.access_token, installationOctokit);
     await updateSecret("USER_REFRESH_TOKEN", publicKeyResp, refreshed.data.refresh_token, installationOctokit);
-    (0,core.debug)("User OAuth tokens refreshed and secrets updated.");
+    (0,core.info)("User OAuth tokens refreshed and secrets updated");
+    return {
+        userAccessToken: refreshed.data.access_token,
+        userRefreshToken: refreshed.data.refresh_token,
+    };
 }
 async function updateSecret(secretName, publicKeyResp, valueToStore, octo) {
     if (!secretName || !publicKeyResp || !valueToStore || !octo) {

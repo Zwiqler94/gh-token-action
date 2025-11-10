@@ -22,9 +22,15 @@ inputs:
   installationId:
     description: Optional explicit GitHub App installation id to use instead of resolving from the repository.
     required: false
+  exposeTokens:
+    description: Set to true to expose the refreshed tokens as outputs for this workflow run (use only for testing).
+    required: false
+    default: "false"
 outputs:
   appToken:
-    description: Installation access token (only set when running locally with act).
+    description: Installation access token (only set when exposeTokens is true or running with act).
+  userToken:
+    description: User OAuth access token (only set when exposeTokens is true or running with act).
 runs:
   using: node24
   main: dist/index.js

@@ -29,6 +29,7 @@ jobs:
           clientId: ${{ secrets.APP_CLIENT_ID }}
           clientSecret: ${{ secrets.APP_CLIENT_SECRET }}
           userRefreshToken: ${{ secrets.USER_REFRESH_TOKEN }}
+          exposeTokens: true
   test-push:
     runs-on: ubuntu-latest
     needs: [test]
@@ -67,4 +68,3 @@ jobs:
       - run: curl --request POST "${{ env.APPROVAL_URL }}"  -H "content-type:application/json" -H 'Authorization:Bearer ${{ needs.test.outputs.userToken }}' -d '{"event":"APPROVE"}'
       - run: echo "MERGE_URL="${{ env.PULL_URL }}/${{ env.CURL }}/merge"" >> "$GITHUB_ENV"
       - run: curl --request PUT ${{ env.MERGE_URL }}  -H "Accept:application/vnd.github+json" -H 'Authorization:Bearer ${{ needs.test.outputs.appToken }}' -d '{"commit_title":"Expand enum","commit_message":"Add a new value to the merge_method enum"}'
-

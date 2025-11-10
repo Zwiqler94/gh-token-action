@@ -1,6 +1,7 @@
 import {
   debug,
   error,
+  getBooleanInput,
   getInput,
   info,
   setFailed,
@@ -19,6 +20,7 @@ type Inputs = {
   clientSecret: string;
   appId: string;
   installationId?: number;
+  exposeTokens: boolean;
 };
 
 type InstallationOctokit = Awaited<ReturnType<App["getInstallationOctokit"]>>;
@@ -37,14 +39,19 @@ async function run() {
       oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
     });
 
+    info("Resolving installation id");
     const installationId = await resolveInstallationId(app, inputs.installationId);
+    info(`Resolved installation id ${installationId}`);
     const installationOctokit = await app.getInstallationOctokit(installationId);
+    info("Requesting installation access token");
     const installationToken = await requestInstallationToken(
       installationOctokit,
       installationId
     );
+    info("Installation access token acquired");
 
     const publicKeyResp = await getPublicKey(installationOctokit);
+    info("Repository public key fetched");
 
     await updateSecret(
       "APP_ACCESS_TOKEN",
@@ -52,18 +59,26 @@ async function run() {
       installationToken.token,
       installationOctokit
     );
+    info("APP_ACCESS_TOKEN secret updated");
 
-    if (context.actor === "nektos/act") {
-      setOutput("appToken", installationToken.token);
-    }
+    const shouldExposeTokens = inputs.exposeTokens || context.actor === "nektos/act";
 
-    await ensureUserTokens({
+    info("Ensuring user tokens are valid");
+    const userTokens = await ensureUserTokens({
       app,
       installationOctokit,
       publicKeyResp,
       token: inputs.token,
       userRefreshToken: inputs.userRefreshToken,
     });
+    info("User token handling completed");
+
+    if (shouldExposeTokens) {
+      setOutput("appToken", installationToken.token);
+      if (userTokens?.userAccessToken) {
+        setOutput("userToken", userTokens.userAccessToken);
+      }
+    }
 
     info("GitHub App credentials refreshed successfully.");
   } catch (runError) {
@@ -80,6 +95,7 @@ function getInputs(): Inputs {
   const clientSecret = getInput("clientSecret", { required: true });
   const appId = getInput("appId", { required: true });
   const installationIdInput = getInput("installationId");
+  const exposeTokens = getBooleanInput("exposeTokens");
 
   let installationId: number | undefined;
   if (installationIdInput) {
@@ -97,6 +113,7 @@ function getInputs(): Inputs {
     clientSecret,
     appId,
     installationId,
+    exposeTokens,
   };
 }
 
@@ -171,24 +188,29 @@ async function getPublicKey(octo: InstallationOctokit) {
   return publicKeyResp;
 }
 
+type UserTokenResult = {
+  userAccessToken?: string;
+  userRefreshToken?: string;
+};
+
 async function ensureUserTokens(params: {
   app: App;
   installationOctokit: InstallationOctokit;
   publicKeyResp: any;
   token: string;
   userRefreshToken: string;
-}) {
+}): Promise<UserTokenResult | undefined> {
   const { app, installationOctokit, publicKeyResp, token, userRefreshToken } =
     params;
 
   if (!token && !userRefreshToken) {
     debug("No user token inputs provided; skipping user token rotation.");
-    return;
+    return undefined;
   }
 
   if (token) {
     try {
-      debug("Checking existing user token validity.");
+      info("Checking existing user token validity");
       const checkToken = await app.oauth.checkToken({ token });
       await updateSecret(
         "USER_ACCESS_TOKEN",
@@ -196,8 +218,8 @@ async function ensureUserTokens(params: {
         checkToken.data.token,
         installationOctokit
       );
-      debug("User access token is still valid.");
-      return;
+      info("User access token is still valid");
+      return { userAccessToken: checkToken.data.token };
     } catch (checkError) {
       debug(`Provided user token is invalid: ${formatError(checkError)}`);
     }
@@ -209,7 +231,7 @@ async function ensureUserTokens(params: {
     );
   }
 
-  debug("Refreshing user OAuth token using provided refresh token.");
+  info("Refreshing user OAuth token using provided refresh token");
   const refreshed = await app.oauth.refreshToken({
     refreshToken: userRefreshToken,
   });
@@ -231,7 +253,11 @@ async function ensureUserTokens(params: {
     installationOctokit
   );
 
-  debug("User OAuth tokens refreshed and secrets updated.");
+  info("User OAuth tokens refreshed and secrets updated");
+  return {
+    userAccessToken: refreshed.data.access_token,
+    userRefreshToken: refreshed.data.refresh_token,
+  };
 }
 
 async function updateSecret(
