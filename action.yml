@@ -1,7 +1,30 @@
-name: Get Github Token
-description: ''
-runs: 
-  using: 'node24'
-  main: 'dist/index.js'
- 
-      
+name: Get GitHub Token
+description: Refreshes a GitHub App installation token and optionally keeps a user OAuth token in sync with repository secrets.
+inputs:
+  appId:
+    description: GitHub App identifier.
+    required: true
+  privateKey:
+    description: GitHub App private key in PEM format.
+    required: true
+  clientId:
+    description: OAuth client ID for the GitHub App.
+    required: true
+  clientSecret:
+    description: OAuth client secret for the GitHub App.
+    required: true
+  token:
+    description: Existing user OAuth access token to validate before rotating.
+    required: false
+  userRefreshToken:
+    description: User OAuth refresh token used when the access token is invalid.
+    required: false
+  installationId:
+    description: Optional explicit GitHub App installation id to use instead of resolving from the repository.
+    required: false
+outputs:
+  appToken:
+    description: Installation access token (only set when running locally with act).
+runs:
+  using: node24
+  main: dist/index.js

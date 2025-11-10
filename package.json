@@ -16,15 +16,15 @@
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
     "@kie/mock-github": "^2.0.1",
-    "@octokit/app": "^16.0.1",
-    "@octokit/types": "^14.1.0",
-    "@vercel/ncc": "^0.38.3",
+    "@octokit/app": "^16.1.2",
+    "@octokit/types": "^16.0.0",
+    "@vercel/ncc": "^0.38.4",
     "jsonwebtoken": "^9.0.2",
     "libsodium-wrappers": "^0.7.15",
     "open": "^10.2.0",
     "openssl": "^2.0.0",
     "tslib": "^2.8.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

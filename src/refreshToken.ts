@@ -1,291 +1,288 @@
-import { debug, error, setFailed, getInput, setOutput } from "@actions/core";
-import { getOctokit, context } from "@actions/github";
-import { App, GetInstallationOctokitInterface } from "@octokit/app";
-import { Octokit } from "@octokit/core";
-import { sign } from "jsonwebtoken";
+import {
+  debug,
+  error,
+  getInput,
+  info,
+  setFailed,
+  setOutput,
+  setSecret,
+} from "@actions/core";
+import { context } from "@actions/github";
+import { App } from "@octokit/app";
 import _sodium from "libsodium-wrappers";
 
+type Inputs = {
+  token: string;
+  userRefreshToken: string;
+  privateKey: string;
+  clientId: string;
+  clientSecret: string;
+  appId: string;
+  installationId?: number;
+};
+
+type InstallationOctokit = Awaited<ReturnType<App["getInstallationOctokit"]>>;
+
 async function run() {
-  debug("Start Token Check");
-  debug(`Repo info: ${JSON.stringify(context.repo)}`);
-
-  const token = getInput("token");
-  const userRefreshToken = getInput("userRefreshToken");
-  const privateKey = getInput("privateKey");
-  const clientId = getInput("clientId");
-  const clientSecret = getInput("clientSecret");
-  const appId = getInput("appId");
-  let refreshAccessTokenResponse;
-  let publicKeyResp;
-
-  debug(
-    JSON.stringify({
-      inputs: {
-        token,
-        userRefreshToken,
-        privateKey,
-        clientId,
-        clientSecret,
-        appId,
-      },
-    })
-  );
-
-  const jwt = generateJWT(appId, privateKey);
-  let installId = await getAppInstallId(jwt);
-
-  const app = new App({
-    appId,
-    privateKey,
-    oauth: { clientId, clientSecret },
-  });
-
-  const octo = await app.getInstallationOctokit(installId);
-  const octoInstallToken = await octo.request(
-    "POST /app/installations/{installation_id}/access_tokens",
-    {
-      installation_id: installId,
-      repository: context.repo,
-    }
-  );
-
   try {
-    publicKeyResp = await getPublicKey(context.repo, octo);
+    debug("Start Token Check");
+    debug(`Repo info: ${JSON.stringify(context.repo)}`);
+
+    const inputs = getInputs();
+    maskSensitiveInputs(inputs);
+
+    const app = new App({
+      appId: inputs.appId,
+      privateKey: inputs.privateKey,
+      oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
+    });
+
+    const installationId = await resolveInstallationId(app, inputs.installationId);
+    const installationOctokit = await app.getInstallationOctokit(installationId);
+    const installationToken = await requestInstallationToken(
+      installationOctokit,
+      installationId
+    );
+
+    const publicKeyResp = await getPublicKey(installationOctokit);
+
+    await updateSecret(
+      "APP_ACCESS_TOKEN",
+      publicKeyResp,
+      installationToken.token,
+      installationOctokit
+    );
 
     if (context.actor === "nektos/act") {
-      setOutput("appToken", octoInstallToken.data.token);
-      const updateAccessTokenResp = await updateSecret(
-        "APP_ACCESS_TOKEN",
-        publicKeyResp,
-        octoInstallToken.data.token,
-        octo as Octokit
-      );
-    } else {
-      const updateAccessTokenResp = await updateSecret(
-        "APP_ACCESS_TOKEN",
-        publicKeyResp,
-        octoInstallToken.data.token,
-        octo as Octokit
-      );
-      debug(JSON.stringify({ access: updateAccessTokenResp }));
+      setOutput("appToken", installationToken.token);
     }
 
-    if (token.length > 0) {
-      try {
-        const checkToken = await app.oauth.checkToken({ token });
-        debug(JSON.stringify(checkToken));
-        const updateAccessTokenResp = await updateSecret(
-          "USER_ACCESS_TOKEN",
-          publicKeyResp,
-          checkToken.data.token,
-          octo as Octokit
-        );
-      } catch (error: any) {
-        const refreshTokenResp = await app.oauth.refreshToken({
-          refreshToken: userRefreshToken,
-        });
-        const updateAccessTokenResp = await updateSecret(
-          "USER_ACCESS_TOKEN",
-          publicKeyResp,
-          refreshTokenResp.data.access_token,
-          octo as Octokit
-        );
-        const updateRefreshTokenResp = updateSecret(
-          "USER_REFRESH_TOKEN",
-          publicKeyResp,
-          refreshTokenResp.data.refresh_token,
-          octo as Octokit
-        );
-        debug(JSON.stringify({ access: updateAccessTokenResp }));
-        debug(JSON.stringify({ refresh: updateRefreshTokenResp }));
-      }
-    }
-  } catch (error) {
-    console.log(error);
-  }
+    await ensureUserTokens({
+      app,
+      installationOctokit,
+      publicKeyResp,
+      token: inputs.token,
+      userRefreshToken: inputs.userRefreshToken,
+    });
 
-  debug(JSON.stringify(octoInstallToken.data));
-  debug(JSON.stringify({ octoApp: octo }));
-
-  try {
-    if (token.length > 0) {
-      try {
-        debug("start check token");
-        const validTokenResponse = await octo.request(
-          "POST /applications/{client_id}/token",
-          {
-            client_id: clientId,
-            access_token: token,
-            headers: {
-              "X-GitHub-Api-Version": "2022-11-28",
-            },
-          }
-        );
-        debug(JSON.stringify(validTokenResponse));
-        debug("Token is Valid, Carry On...");
-
-        return;
-      } catch (error2: any) {
-        error(error2);
-        debug("Refreshing token");
-
-        refreshAccessTokenResponse = await app.oauth.refreshToken({
-          refreshToken: userRefreshToken,
-        });
-
-        debug(JSON.stringify({ refreshFinished: refreshAccessTokenResponse }));
-
-        debug("Get Public Key");
-        publicKeyResp = await getPublicKey(context.repo, octo);
-
-        debug(JSON.stringify({ publicKeyResp }));
-
-        try {
-          try {
-            try {
-              debug("Begin Secret Updates");
-              const updateAccessTokenResp = await updateSecret(
-                "USER_ACCESS_TOKEN",
-                publicKeyResp,
-                refreshAccessTokenResponse.data.access_token,
-                octo as Octokit
-              );
-
-              debug(JSON.stringify({ access: updateAccessTokenResp }));
-
-              const updateRefreshTokenResp = await updateSecret(
-                "USER_REFRESH_TOKEN",
-                publicKeyResp,
-                refreshAccessTokenResponse.data.refresh_token,
-                octo as Octokit
-              );
-
-              debug(JSON.stringify({ refresh: updateRefreshTokenResp }));
-              debug("Finish Secret Updates");
-            } catch (error3: any) {
-              error(error3);
-              throw Error(JSON.stringify({ failedSecretUpdate: error3 }));
-            }
-          } catch (error5: any) {
-            error(error5);
-            throw Error(error5);
-          }
-        } catch (error6: any) {
-          debug(JSON.stringify({ error6 }));
-          throw Error(error6);
-        }
-      }
-    }
-  } catch (error7: any) {
-    error("Token Refresh Failed, Refresh Manually");
-    setFailed(error7);
+    info("GitHub App credentials refreshed successfully.");
+  } catch (runError) {
+    error(runError as Error);
+    setFailed(runError instanceof Error ? runError.message : String(runError));
   }
 }
 
-async function getPublicKey(
-  options: {
-    owner: string;
-    repo: string;
-  },
-  app: any
-) {
-  debug(`repo: ${JSON.stringify(options)}`);
+function getInputs(): Inputs {
+  const token = getInput("token");
+  const userRefreshToken = getInput("userRefreshToken");
+  const privateKey = getInput("privateKey", { required: true });
+  const clientId = getInput("clientId", { required: true });
+  const clientSecret = getInput("clientSecret", { required: true });
+  const appId = getInput("appId", { required: true });
+  const installationIdInput = getInput("installationId");
 
-  try {
-    const publicKeyResp = await app.request(
-      "GET /repos/{owner}/{repo}/actions/secrets/public-key",
-      {
-        ...context.repo,
-        headers: {
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-    debug(`Public Key Resp: ${JSON.stringify(publicKeyResp)}`);
-    return publicKeyResp;
-  } catch (error9: any) {
-    error(error9);
-    throw Error(error9);
+  let installationId: number | undefined;
+  if (installationIdInput) {
+    installationId = Number.parseInt(installationIdInput, 10);
+    if (Number.isNaN(installationId)) {
+      throw new Error("installationId must be a number");
+    }
   }
+
+  return {
+    token,
+    userRefreshToken,
+    privateKey,
+    clientId,
+    clientSecret,
+    appId,
+    installationId,
+  };
+}
+
+function maskSensitiveInputs(inputs: Inputs) {
+  [
+    inputs.token,
+    inputs.userRefreshToken,
+    inputs.privateKey,
+    inputs.clientSecret,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .forEach((value) => setSecret(value));
+}
+
+async function resolveInstallationId(app: App, installationId?: number) {
+  if (installationId) {
+    debug(`Using provided installation id ${installationId}`);
+    return installationId;
+  }
+
+  const response = await app.octokit.request(
+    "GET /repos/{owner}/{repo}/installation",
+    {
+      ...context.repo,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }
+  );
+
+  debug(
+    `Resolved installation id ${response.data.id} for ${context.repo.owner}/${context.repo.repo}`
+  );
+  return response.data.id;
+}
+
+async function requestInstallationToken(
+  octo: InstallationOctokit,
+  installationId: number
+) {
+  const response = await octo.request(
+    "POST /app/installations/{installation_id}/access_tokens",
+    {
+      installation_id: installationId,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }
+  );
+
+  debug(
+    `Generated installation token expiring at ${response.data.expires_at}`
+  );
+  setSecret(response.data.token);
+  return response.data;
+}
+
+async function getPublicKey(octo: InstallationOctokit) {
+  const publicKeyResp = await octo.request(
+    "GET /repos/{owner}/{repo}/actions/secrets/public-key",
+    {
+      ...context.repo,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }
+  );
+
+  debug(
+    `Fetched repository public key ${publicKeyResp.data.key_id} for ${context.repo.owner}/${context.repo.repo}`
+  );
+  return publicKeyResp;
+}
+
+async function ensureUserTokens(params: {
+  app: App;
+  installationOctokit: InstallationOctokit;
+  publicKeyResp: any;
+  token: string;
+  userRefreshToken: string;
+}) {
+  const { app, installationOctokit, publicKeyResp, token, userRefreshToken } =
+    params;
+
+  if (!token && !userRefreshToken) {
+    debug("No user token inputs provided; skipping user token rotation.");
+    return;
+  }
+
+  if (token) {
+    try {
+      debug("Checking existing user token validity.");
+      const checkToken = await app.oauth.checkToken({ token });
+      await updateSecret(
+        "USER_ACCESS_TOKEN",
+        publicKeyResp,
+        checkToken.data.token,
+        installationOctokit
+      );
+      debug("User access token is still valid.");
+      return;
+    } catch (checkError) {
+      debug(`Provided user token is invalid: ${formatError(checkError)}`);
+    }
+  }
+
+  if (!userRefreshToken) {
+    throw new Error(
+      "userRefreshToken input is required when the provided token is invalid."
+    );
+  }
+
+  debug("Refreshing user OAuth token using provided refresh token.");
+  const refreshed = await app.oauth.refreshToken({
+    refreshToken: userRefreshToken,
+  });
+
+  setSecret(refreshed.data.access_token);
+  setSecret(refreshed.data.refresh_token);
+
+  await updateSecret(
+    "USER_ACCESS_TOKEN",
+    publicKeyResp,
+    refreshed.data.access_token,
+    installationOctokit
+  );
+
+  await updateSecret(
+    "USER_REFRESH_TOKEN",
+    publicKeyResp,
+    refreshed.data.refresh_token,
+    installationOctokit
+  );
+
+  debug("User OAuth tokens refreshed and secrets updated.");
 }
 
 async function updateSecret(
   secretName: string,
   publicKeyResp: any,
-  valueToStore: any,
-  app: any
+  valueToStore: string,
+  octo: InstallationOctokit
 ) {
-  debug(`\nSecret to update ${secretName}\n`);
-  if (!(secretName.length > 0) && !publicKeyResp && !valueToStore && !app) {
-    throw Error("Missing a parameter!");
+  if (!secretName || !publicKeyResp || !valueToStore || !octo) {
+    throw new Error("Missing parameters for updateSecret");
   }
+
   await _sodium.ready;
   const sodium = _sodium;
-  let binkey = sodium.from_base64(
+  const binkey = sodium.from_base64(
     publicKeyResp.data.key,
     sodium.base64_variants.ORIGINAL
   );
-
-  let binsec = sodium.from_string(valueToStore);
-
-  let encBytesAccessToken = sodium.crypto_box_seal(binsec, binkey);
-
-  let completedSecret = sodium.to_base64(
+  const binsec = sodium.from_string(valueToStore);
+  const encBytesAccessToken = sodium.crypto_box_seal(binsec, binkey);
+  const completedSecret = sodium.to_base64(
     encBytesAccessToken,
     sodium.base64_variants.ORIGINAL
   );
 
-  debug(
-    JSON.stringify({ binkey, binsec, encBytesAccessToken, completedSecret })
-  );
+  debug(`Updating secret ${secretName}`);
 
-  try {
-    const updateSecretResp = await app.request(
-      "PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}",
-      {
-        ...context.repo,
-        secret_name: secretName,
-        encrypted_value: completedSecret,
-        key_id: publicKeyResp.data.key_id,
-        headers: {
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-    debug(JSON.stringify(updateSecretResp));
-    return updateSecretResp;
-  } catch (error9: any) {
-    throw Error(error9);
-  }
-}
-
-async function getAppInstallId(jwt: string) {
-  const installationOcto = getOctokit(jwt);
-  const resp = await installationOcto.request("GET /app/installations", {
+  await octo.request("PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}", {
+    ...context.repo,
+    secret_name: secretName,
+    encrypted_value: completedSecret,
+    key_id: publicKeyResp.data.key_id,
     headers: {
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 
-  let installId = 0;
-  if (resp.data[0].app_slug === "actions-pr-approval") {
-    installId = resp.data[0].id;
-  }
-  return installId;
+  debug(`Secret ${secretName} updated.`);
 }
 
-function generateJWT(appId: string, privateKey: string) {
-  const issuedAtTime = Math.floor(Date.now() / 1000) - 60;
-  const expirationTime = issuedAtTime + 10 * 60;
-  debug(JSON.stringify({ issuedAtTime, expirationTime }));
-  const jwt = sign(
-    { iat: issuedAtTime, exp: expirationTime, iss: appId },
-    privateKey,
-    {
-      algorithm: "RS256",
-    }
-  );
-  return jwt;
+function formatError(err: unknown) {
+  if (err instanceof Error) {
+    return err.message;
+  }
+
+  try {
+    return JSON.stringify(err);
+  } catch (jsonError) {
+    error(jsonError as Error);
+    return String(err);
+  }
 }
 
 run();
