@@ -13,7 +13,7 @@
   "author": "Jacob Zwickler",
   "license": "ISC",
   "dependencies": {
-    "@actions/core": "^3.0.0",
+    "@actions/core": "^3.0.1",
     "@actions/github": "^9.0.0",
     "@kie/mock-github": "^2.0.1",
     "@octokit/app": "^16.1.2",
