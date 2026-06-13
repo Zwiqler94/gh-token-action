@@ -12,6 +12,12 @@ import { context } from "@actions/github";
 import { App } from "@octokit/app";
 import _sodium from "libsodium-wrappers";
 
+const GITHUB_API_VERSION = "2026-03-10";
+const GITHUB_API_VERSION_HEADER = {
+  accept: "application/vnd.github+json",
+  "X-GitHub-Api-Version": GITHUB_API_VERSION,
+};
+
 type Inputs = {
   token: string;
   userRefreshToken: string;
@@ -134,15 +140,25 @@ async function resolveInstallationId(app: App, installationId?: number) {
     return installationId;
   }
 
-  const response = await app.octokit.request(
-    "GET /repos/{owner}/{repo}/installation",
-    {
-      ...context.repo,
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+  let response;
+  try {
+    response = await app.octokit.request(
+      "GET /repos/{owner}/{repo}/installation",
+      {
+        ...context.repo,
+        headers: GITHUB_API_VERSION_HEADER,
+      }
+    );
+  } catch (err) {
+    if (isHttpStatus(err, 404)) {
+      throw new Error(
+        `GitHub App installation was not found for ${context.repo.owner}/${context.repo.repo}. ` +
+          "Install the app on this repository, grant it access to this repository, or pass a valid installationId for an installation that can access it."
+      );
     }
-  );
+
+    throw err;
+  }
 
   debug(
     `Resolved installation id ${response.data.id} for ${context.repo.owner}/${context.repo.repo}`
@@ -158,9 +174,7 @@ async function requestInstallationToken(
     "POST /app/installations/{installation_id}/access_tokens",
     {
       installation_id: installationId,
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
 
@@ -176,9 +190,7 @@ async function getPublicKey(octo: InstallationOctokit) {
     "GET /repos/{owner}/{repo}/actions/secrets/public-key",
     {
       ...context.repo,
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
 
@@ -290,9 +302,7 @@ async function updateSecret(
     secret_name: secretName,
     encrypted_value: completedSecret,
     key_id: publicKeyResp.data.key_id,
-    headers: {
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
+    headers: GITHUB_API_VERSION_HEADER,
   });
 
   debug(`Secret ${secretName} updated.`);
@@ -309,6 +319,15 @@ function formatError(err: unknown) {
     error(jsonError as Error);
     return String(err);
   }
+}
+
+function isHttpStatus(err: unknown, status: number) {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status?: unknown }).status === status
+  );
 }
 
 run();

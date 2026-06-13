@@ -94,7 +94,7 @@ action.yml              ← Metadata defining inputs/outputs/entry point
 1. **JWT Expiry**: 10 minutes (generated fresh each run with 60-second clock skew buffer)
 2. **App Identification**: Hardcoded check for `app_slug === "actions-pr-approval"` when retrieving installation ID
 3. **OAuth Endpoints**: Uses GitHub's OAuth token validation and refresh endpoints
-4. **API Version**: Explicitly sets `X-GitHub-Api-Version: 2022-11-28` on REST API calls
+4. **API Version**: Explicitly sets `X-GitHub-Api-Version: 2026-03-10` on REST API calls
 
 ## When Adding/Modifying Code
 
