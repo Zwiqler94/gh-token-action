@@ -1,11 +1,9 @@
 import {
   debug,
   error,
-  getBooleanInput,
   getInput,
   info,
   setFailed,
-  setOutput,
   setSecret,
 } from "@actions/core";
 import { context } from "@actions/github";
@@ -26,7 +24,6 @@ type Inputs = {
   clientSecret: string;
   appId: string;
   installationId?: number;
-  exposeTokens: boolean;
 };
 
 type InstallationOctokit = Awaited<ReturnType<App["getInstallationOctokit"]>>;
@@ -67,10 +64,8 @@ async function run() {
     );
     info("APP_ACCESS_TOKEN secret updated");
 
-    const shouldExposeTokens = inputs.exposeTokens || context.actor === "nektos/act";
-
     info("Ensuring user tokens are valid");
-    const userTokens = await ensureUserTokens({
+    await ensureUserTokens({
       app,
       installationOctokit,
       publicKeyResp,
@@ -78,13 +73,6 @@ async function run() {
       userRefreshToken: inputs.userRefreshToken,
     });
     info("User token handling completed");
-
-    if (shouldExposeTokens) {
-      setOutput("appToken", installationToken.token);
-      if (userTokens?.userAccessToken) {
-        setOutput("userToken", userTokens.userAccessToken);
-      }
-    }
 
     info("GitHub App credentials refreshed successfully.");
   } catch (runError) {
@@ -101,7 +89,6 @@ function getInputs(): Inputs {
   const clientSecret = getInput("clientSecret", { required: true });
   const appId = getInput("appId", { required: true });
   const installationIdInput = getInput("installationId");
-  const exposeTokens = getBooleanInput("exposeTokens");
 
   let installationId: number | undefined;
   if (installationIdInput) {
@@ -119,7 +106,6 @@ function getInputs(): Inputs {
     clientSecret,
     appId,
     installationId,
-    exposeTokens,
   };
 }
 

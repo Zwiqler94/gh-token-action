@@ -29313,16 +29313,16 @@ function file_command_issueFileCommand(command, message) {
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
     }
-    if (!external_fs_namespaceObject.existsSync(filePath)) {
+    if (!fs.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
     }
-    external_fs_namespaceObject.appendFileSync(filePath, `${utils_toCommandValue(message)}${external_os_namespaceObject.EOL}`, {
+    fs.appendFileSync(filePath, `${toCommandValue(message)}${os.EOL}`, {
         encoding: 'utf8'
     });
 }
 function file_command_prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${external_crypto_namespaceObject.randomUUID()}`;
-    const convertedValue = utils_toCommandValue(value);
+    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
+    const convertedValue = toCommandValue(value);
     // These should realistically never happen, but just in case someone finds a
     // way to exploit uuid generation let's not allow keys or values that contain
     // the delimiter.
@@ -29332,7 +29332,7 @@ function file_command_prepareKeyValueMessage(key, value) {
     if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
     }
-    return `${key}<<${delimiter}${external_os_namespaceObject.EOL}${convertedValue}${external_os_namespaceObject.EOL}${delimiter}`;
+    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
 }
 //# sourceMappingURL=file-command.js.map
 ;// CONCATENATED MODULE: external "path"
@@ -31954,10 +31954,10 @@ function getBooleanInput(name, options) {
 function setOutput(name, value) {
     const filePath = process.env['GITHUB_OUTPUT'] || '';
     if (filePath) {
-        return file_command_issueFileCommand('OUTPUT', file_command_prepareKeyValueMessage(name, value));
+        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
     }
-    process.stdout.write(external_os_namespaceObject.EOL);
-    command_issueCommand('set-output', { name }, utils_toCommandValue(value));
+    process.stdout.write(os.EOL);
+    issueCommand('set-output', { name }, toCommandValue(value));
 }
 /**
  * Enables or disables the echoing of commands into stdout for the rest of the step.
@@ -40925,9 +40925,8 @@ async function run() {
         info("Repository public key fetched");
         await updateSecret("APP_ACCESS_TOKEN", publicKeyResp, installationToken.token, installationOctokit);
         info("APP_ACCESS_TOKEN secret updated");
-        const shouldExposeTokens = inputs.exposeTokens || github_context.actor === "nektos/act";
         info("Ensuring user tokens are valid");
-        const userTokens = await ensureUserTokens({
+        await ensureUserTokens({
             app,
             installationOctokit,
             publicKeyResp,
@@ -40935,12 +40934,6 @@ async function run() {
             userRefreshToken: inputs.userRefreshToken,
         });
         info("User token handling completed");
-        if (shouldExposeTokens) {
-            setOutput("appToken", installationToken.token);
-            if (userTokens?.userAccessToken) {
-                setOutput("userToken", userTokens.userAccessToken);
-            }
-        }
         info("GitHub App credentials refreshed successfully.");
     }
     catch (runError) {
@@ -40956,7 +40949,6 @@ function getInputs() {
     const clientSecret = getInput("clientSecret", { required: true });
     const appId = getInput("appId", { required: true });
     const installationIdInput = getInput("installationId");
-    const exposeTokens = getBooleanInput("exposeTokens");
     let installationId;
     if (installationIdInput) {
         installationId = Number.parseInt(installationIdInput, 10);
@@ -40972,7 +40964,6 @@ function getInputs() {
         clientSecret,
         appId,
         installationId,
-        exposeTokens,
     };
 }
 function maskSensitiveInputs(inputs) {
