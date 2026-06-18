@@ -22,7 +22,6 @@
     "jsonwebtoken": "^9.0.3",
     "libsodium-wrappers": "^0.8.4",
     "open": "^11.0.0",
-    "openssl": "^2.0.0",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3"
   },
