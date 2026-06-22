@@ -29313,16 +29313,16 @@ function file_command_issueFileCommand(command, message) {
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
     }
-    if (!fs.existsSync(filePath)) {
+    if (!external_fs_namespaceObject.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
     }
-    fs.appendFileSync(filePath, `${toCommandValue(message)}${os.EOL}`, {
+    external_fs_namespaceObject.appendFileSync(filePath, `${utils_toCommandValue(message)}${external_os_namespaceObject.EOL}`, {
         encoding: 'utf8'
     });
 }
 function file_command_prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
-    const convertedValue = toCommandValue(value);
+    const delimiter = `ghadelimiter_${external_crypto_namespaceObject.randomUUID()}`;
+    const convertedValue = utils_toCommandValue(value);
     // These should realistically never happen, but just in case someone finds a
     // way to exploit uuid generation let's not allow keys or values that contain
     // the delimiter.
@@ -29332,7 +29332,7 @@ function file_command_prepareKeyValueMessage(key, value) {
     if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
     }
-    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
+    return `${key}<<${delimiter}${external_os_namespaceObject.EOL}${convertedValue}${external_os_namespaceObject.EOL}${delimiter}`;
 }
 //# sourceMappingURL=file-command.js.map
 ;// CONCATENATED MODULE: external "path"
@@ -31954,10 +31954,10 @@ function getBooleanInput(name, options) {
 function setOutput(name, value) {
     const filePath = process.env['GITHUB_OUTPUT'] || '';
     if (filePath) {
-        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
+        return file_command_issueFileCommand('OUTPUT', file_command_prepareKeyValueMessage(name, value));
     }
-    process.stdout.write(os.EOL);
-    issueCommand('set-output', { name }, toCommandValue(value));
+    process.stdout.write(external_os_namespaceObject.EOL);
+    command_issueCommand('set-output', { name }, utils_toCommandValue(value));
 }
 /**
  * Enables or disables the echoing of commands into stdout for the rest of the step.
@@ -40909,18 +40909,19 @@ async function run() {
         core_debug(`Repo info: ${JSON.stringify(github_context.repo)}`);
         const inputs = getInputs();
         maskSensitiveInputs(inputs);
-        const app = new App({
-            appId: inputs.appId,
-            privateKey: inputs.privateKey,
-            oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
-        });
+        const app = createApp(inputs);
         info("Resolving installation id");
         const installationId = await resolveInstallationId(app, inputs.installationId);
         info(`Resolved installation id ${installationId}`);
-        const installationOctokit = await app.getInstallationOctokit(installationId);
         info("Requesting installation access token");
-        const installationToken = await requestInstallationToken(installationOctokit, installationId);
+        const installationToken = await requestInstallationToken(app, installationId, inputs.permissions);
         info("Installation access token acquired");
+        if (inputs.mode === "app-token") {
+            setOutput("token", installationToken.token);
+            info("Fresh installation token exposed as a step output.");
+            return;
+        }
+        const installationOctokit = await app.getInstallationOctokit(installationId);
         const publicKeyResp = await getPublicKey(installationOctokit);
         info("Repository public key fetched");
         await updateSecret("APP_ACCESS_TOKEN", publicKeyResp, installationToken.token, installationOctokit);
@@ -40934,7 +40935,7 @@ async function run() {
             userRefreshToken: inputs.userRefreshToken,
         });
         info("User token handling completed");
-        info("GitHub App credentials refreshed successfully.");
+        info("Repository token secrets refreshed successfully.");
     }
     catch (runError) {
         error(runError);
@@ -40942,13 +40943,21 @@ async function run() {
     }
 }
 function getInputs() {
+    const mode = getMode();
     const token = getInput("token");
     const userRefreshToken = getInput("userRefreshToken");
     const privateKey = getInput("privateKey", { required: true });
-    const clientId = getInput("clientId", { required: true });
-    const clientSecret = getInput("clientSecret", { required: true });
+    const clientId = getInput("clientId");
+    const clientSecret = getInput("clientSecret");
     const appId = getInput("appId", { required: true });
     const installationIdInput = getInput("installationId");
+    const permissions = mode === "app-token" ? getPermissions() : {};
+    if ((clientId && !clientSecret) || (!clientId && clientSecret)) {
+        throw new Error("clientId and clientSecret must be provided together.");
+    }
+    if ((token || userRefreshToken) && (!clientId || !clientSecret)) {
+        throw new Error("clientId and clientSecret are required when rotating user OAuth tokens.");
+    }
     let installationId;
     if (installationIdInput) {
         installationId = Number.parseInt(installationIdInput, 10);
@@ -40957,6 +40966,7 @@ function getInputs() {
         }
     }
     return {
+        mode,
         token,
         userRefreshToken,
         privateKey,
@@ -40964,7 +40974,31 @@ function getInputs() {
         clientSecret,
         appId,
         installationId,
+        permissions,
     };
+}
+function getMode() {
+    const mode = getInput("mode") || "app-token";
+    if (mode === "app-token" || mode === "rotate-secrets") {
+        return mode;
+    }
+    throw new Error("mode must be either app-token or rotate-secrets");
+}
+function getPermissions() {
+    const permissions = {};
+    addPermission(permissions, "contents", "permission-contents");
+    addPermission(permissions, "pull_requests", "permission-pull-requests");
+    return permissions;
+}
+function addPermission(permissions, permissionName, inputName) {
+    const value = getInput(inputName);
+    if (!value) {
+        return;
+    }
+    if (value !== "read" && value !== "write") {
+        throw new Error(`${inputName} must be either read or write.`);
+    }
+    permissions[permissionName] = value;
 }
 function maskSensitiveInputs(inputs) {
     [
@@ -40975,6 +41009,19 @@ function maskSensitiveInputs(inputs) {
     ]
         .filter((value) => Boolean(value))
         .forEach((value) => core_setSecret(value));
+}
+function createApp(inputs) {
+    if (inputs.clientId && inputs.clientSecret) {
+        return new App({
+            appId: inputs.appId,
+            privateKey: inputs.privateKey,
+            oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
+        });
+    }
+    return new App({
+        appId: inputs.appId,
+        privateKey: inputs.privateKey,
+    });
 }
 async function resolveInstallationId(app, installationId) {
     if (installationId) {
@@ -40998,9 +41045,10 @@ async function resolveInstallationId(app, installationId) {
     core_debug(`Resolved installation id ${response.data.id} for ${github_context.repo.owner}/${github_context.repo.repo}`);
     return response.data.id;
 }
-async function requestInstallationToken(octo, installationId) {
-    const response = await octo.request("POST /app/installations/{installation_id}/access_tokens", {
+async function requestInstallationToken(app, installationId, permissions) {
+    const response = await app.octokit.request("POST /app/installations/{installation_id}/access_tokens", {
         installation_id: installationId,
+        ...(Object.keys(permissions).length ? { permissions } : {}),
         headers: GITHUB_API_VERSION_HEADER,
     });
     core_debug(`Generated installation token expiring at ${response.data.expires_at}`);

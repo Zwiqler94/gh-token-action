@@ -1,6 +1,10 @@
 name: Get GitHub Token
-description: Refreshes a GitHub App installation token and optionally keeps a user OAuth token in sync with repository secrets.
+description: Mints GitHub App installation tokens for current runs or rotates token secrets for future runs.
 inputs:
+  mode:
+    description: Use app-token to mint a token for this run, or rotate-secrets to update repository secrets for future runs.
+    required: false
+    default: app-token
   appId:
     description: GitHub App identifier.
     required: true
@@ -8,11 +12,11 @@ inputs:
     description: GitHub App private key in PEM format.
     required: true
   clientId:
-    description: OAuth client ID for the GitHub App.
-    required: true
+    description: OAuth client ID for user token rotation in rotate-secrets mode.
+    required: false
   clientSecret:
-    description: OAuth client secret for the GitHub App.
-    required: true
+    description: OAuth client secret for user token rotation in rotate-secrets mode.
+    required: false
   token:
     description: Existing user OAuth access token to validate before rotating.
     required: false
@@ -22,6 +26,15 @@ inputs:
   installationId:
     description: Optional explicit GitHub App installation id to use instead of resolving from the repository.
     required: false
+  permission-contents:
+    description: Optional contents permission for an app-token mode installation token. Use read or write.
+    required: false
+  permission-pull-requests:
+    description: Optional pull requests permission for an app-token mode installation token. Use read or write.
+    required: false
+outputs:
+  token:
+    description: Fresh GitHub App installation token for the current run when mode is app-token.
 runs:
   using: node24
   main: dist/index.js

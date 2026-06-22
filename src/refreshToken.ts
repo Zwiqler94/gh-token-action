@@ -4,6 +4,7 @@ import {
   getInput,
   info,
   setFailed,
+  setOutput,
   setSecret,
 } from "@actions/core";
 import { context } from "@actions/github";
@@ -16,7 +17,12 @@ const GITHUB_API_VERSION_HEADER = {
   "X-GitHub-Api-Version": GITHUB_API_VERSION,
 };
 
+type Mode = "app-token" | "rotate-secrets";
+type PermissionLevel = "read" | "write";
+type InstallationTokenPermissions = Record<string, PermissionLevel>;
+
 type Inputs = {
+  mode: Mode;
   token: string;
   userRefreshToken: string;
   privateKey: string;
@@ -24,6 +30,7 @@ type Inputs = {
   clientSecret: string;
   appId: string;
   installationId?: number;
+  permissions: InstallationTokenPermissions;
 };
 
 type InstallationOctokit = Awaited<ReturnType<App["getInstallationOctokit"]>>;
@@ -36,23 +43,26 @@ async function run() {
     const inputs = getInputs();
     maskSensitiveInputs(inputs);
 
-    const app = new App({
-      appId: inputs.appId,
-      privateKey: inputs.privateKey,
-      oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
-    });
+    const app = createApp(inputs);
 
     info("Resolving installation id");
     const installationId = await resolveInstallationId(app, inputs.installationId);
     info(`Resolved installation id ${installationId}`);
-    const installationOctokit = await app.getInstallationOctokit(installationId);
     info("Requesting installation access token");
     const installationToken = await requestInstallationToken(
-      installationOctokit,
-      installationId
+      app,
+      installationId,
+      inputs.permissions
     );
     info("Installation access token acquired");
 
+    if (inputs.mode === "app-token") {
+      setOutput("token", installationToken.token);
+      info("Fresh installation token exposed as a step output.");
+      return;
+    }
+
+    const installationOctokit = await app.getInstallationOctokit(installationId);
     const publicKeyResp = await getPublicKey(installationOctokit);
     info("Repository public key fetched");
 
@@ -74,7 +84,7 @@ async function run() {
     });
     info("User token handling completed");
 
-    info("GitHub App credentials refreshed successfully.");
+    info("Repository token secrets refreshed successfully.");
   } catch (runError) {
     error(runError as Error);
     setFailed(runError instanceof Error ? runError.message : String(runError));
@@ -82,13 +92,25 @@ async function run() {
 }
 
 function getInputs(): Inputs {
+  const mode = getMode();
   const token = getInput("token");
   const userRefreshToken = getInput("userRefreshToken");
   const privateKey = getInput("privateKey", { required: true });
-  const clientId = getInput("clientId", { required: true });
-  const clientSecret = getInput("clientSecret", { required: true });
+  const clientId = getInput("clientId");
+  const clientSecret = getInput("clientSecret");
   const appId = getInput("appId", { required: true });
   const installationIdInput = getInput("installationId");
+  const permissions = mode === "app-token" ? getPermissions() : {};
+
+  if ((clientId && !clientSecret) || (!clientId && clientSecret)) {
+    throw new Error("clientId and clientSecret must be provided together.");
+  }
+
+  if ((token || userRefreshToken) && (!clientId || !clientSecret)) {
+    throw new Error(
+      "clientId and clientSecret are required when rotating user OAuth tokens."
+    );
+  }
 
   let installationId: number | undefined;
   if (installationIdInput) {
@@ -99,6 +121,7 @@ function getInputs(): Inputs {
   }
 
   return {
+    mode,
     token,
     userRefreshToken,
     privateKey,
@@ -106,7 +129,41 @@ function getInputs(): Inputs {
     clientSecret,
     appId,
     installationId,
+    permissions,
   };
+}
+
+function getMode(): Mode {
+  const mode = getInput("mode") || "app-token";
+  if (mode === "app-token" || mode === "rotate-secrets") {
+    return mode;
+  }
+
+  throw new Error("mode must be either app-token or rotate-secrets");
+}
+
+function getPermissions(): InstallationTokenPermissions {
+  const permissions: InstallationTokenPermissions = {};
+  addPermission(permissions, "contents", "permission-contents");
+  addPermission(permissions, "pull_requests", "permission-pull-requests");
+  return permissions;
+}
+
+function addPermission(
+  permissions: InstallationTokenPermissions,
+  permissionName: string,
+  inputName: string
+) {
+  const value = getInput(inputName);
+  if (!value) {
+    return;
+  }
+
+  if (value !== "read" && value !== "write") {
+    throw new Error(`${inputName} must be either read or write.`);
+  }
+
+  permissions[permissionName] = value;
 }
 
 function maskSensitiveInputs(inputs: Inputs) {
@@ -118,6 +175,21 @@ function maskSensitiveInputs(inputs: Inputs) {
   ]
     .filter((value): value is string => Boolean(value))
     .forEach((value) => setSecret(value));
+}
+
+function createApp(inputs: Inputs) {
+  if (inputs.clientId && inputs.clientSecret) {
+    return new App({
+      appId: inputs.appId,
+      privateKey: inputs.privateKey,
+      oauth: { clientId: inputs.clientId, clientSecret: inputs.clientSecret },
+    });
+  }
+
+  return new App({
+    appId: inputs.appId,
+    privateKey: inputs.privateKey,
+  });
 }
 
 async function resolveInstallationId(app: App, installationId?: number) {
@@ -153,13 +225,15 @@ async function resolveInstallationId(app: App, installationId?: number) {
 }
 
 async function requestInstallationToken(
-  octo: InstallationOctokit,
-  installationId: number
+  app: App,
+  installationId: number,
+  permissions: InstallationTokenPermissions
 ) {
-  const response = await octo.request(
+  const response = await app.octokit.request(
     "POST /app/installations/{installation_id}/access_tokens",
     {
       installation_id: installationId,
+      ...(Object.keys(permissions).length ? { permissions } : {}),
       headers: GITHUB_API_VERSION_HEADER,
     }
   );
